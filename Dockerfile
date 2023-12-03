@@ -1,12 +1,9 @@
-# Use Ubuntu 22.04 as the base image
 FROM ubuntu:22.04
 
-# Update the package list and install libboost-all-dev
 RUN apt-get update && \
-    DEBIAN_FRONTEND=noninteractive apt-get install -y libboost-all-dev cmake clang libfreetype6-dev && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y libboost-all-dev cmake clang libfreetype6-dev libraqm-dev g++ python3-pip git && \
     rm -rf /var/lib/apt/lists/*
 
-# Set the working directory
-WORKDIR /app
+RUN pip3 install fonttools git+https://gitlab.com/ldo/pybidi.git
 
-# Your additional Dockerfile instructions
+WORKDIR /root
