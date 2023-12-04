@@ -1,3 +1,2 @@
-cache.csv
-unicode_to_font_path.json
 run_raqm.so
+ignore_codepoints.json
