@@ -123,36 +123,122 @@ def split_font_parts(text, unicode_to_font_path):
     parts.append(part)
     return parts
 
+
+def shape_label(text, ignore_codepoints, unicode_to_font_path):
+    to_encode_parts = split_to_encode(text, ignore_codepoints)
+    parts = []
+    for to_encode_part in to_encode_parts:
+        if to_encode_part['to_encode']:
+            font_parts = split_font_parts(to_encode_part['text'], unicode_to_font_path)
+            for font_part in font_parts:
+                glyphs = get_glyphs(font_part['font'], font_part['text'])
+                part = {
+                    'to_encode': to_encode_part['to_encode'],
+                    'glyphs': glyphs,
+                    'font': font_part['font']
+                }
+                parts.append(part)
+        else:
+            part = {
+                'to_encode': to_encode_part['to_encode'],
+                'text': to_encode_part['text']
+            }
+            parts.append(part)
+    return parts
+    
+
+def shape_labels(labels, ignore_codepoints, unicode_to_font_path):
+    shaped_labels = []
+
+    for label in labels:
+        label_parts = shape_label(label, ignore_codepoints, unicode_to_font_path)
+        shaped_labels.append({
+            'text': label,
+            'label_parts': label_parts
+        })
+    return shaped_labels
+
+def get_next_available_codepoint(current_codepoint, ignore_codepoints):
+    i = current_codepoint + 1
+
+    while i < 2 ** 16 and ignore_codepoints[i]:
+        i += 1
+    
+    if i == 2 ** 16:
+        print('Error: Did not find any free codepoint.')
+        exit()
+    
+    return i
+
+def get_glyph_tuple(font, glyph):
+    return (
+        font,
+        glyph['index'],
+        glyph['x_offset'],
+        glyph['y_offset'],
+        glyph['x_advance'],
+        glyph['y_advance']
+    )
+
+def generate_encoding(shaped_labels, ignore_codepoints):
+    unique_glyphs = set([])
+
+    for shaped_label in shaped_labels:
+        for label_part in shaped_label['label_parts']:
+            if label_part['to_encode']:
+                for glyph in label_part['glyphs']:
+                    glyph_tuple = get_glyph_tuple(label_part['font'], glyph)
+                    unique_glyphs.add(glyph_tuple)
+
+    unique_glyphs = list(unique_glyphs)
+
+    glyph_to_unicode_encoding = {}
+    codepoint = -1
+    for glyph in unique_glyphs:
+        codepoint = get_next_available_codepoint(codepoint, ignore_codepoints)
+        glyph_to_unicode_encoding[glyph] = codepoint
+
+    return glyph_to_unicode_encoding
+
+def encode_labels(shaped_labels, glyph_to_unicode_encoding):
+    encoded_labels = []
+    for shaped_label in shaped_labels:
+        encoded_label = ''
+        for label_part in shaped_label['label_parts']:
+            if label_part['to_encode']:
+                for glyph in label_part['glyphs']:
+                    glyph_tuple = get_glyph_tuple(label_part['font'], glyph)
+                    encoded_label += chr(glyph_to_unicode_encoding[glyph_tuple])
+            else:
+                encoded_label += label_part['text']
+        encoded_labels.append(encoded_label)
+    return encoded_labels
+
+
 fonts_directory = '../fonts/'
 
 with open('ignore_codepoints.json') as f:
     ignore_codepoints = json.load(f)
     ignore_codepoints = {int(key): ignore_codepoints[key] for key in ignore_codepoints}
 
-text = "OberHOFភ្នំពេញ"
-
-to_encode_parts = split_to_encode(text, ignore_codepoints)
 
 unicode_to_font_path = build_unicode_to_font_path(fonts_directory)
 
-parts = []
-for to_encode_part in to_encode_parts:
-    if to_encode_part['to_encode']:
-        font_parts = split_font_parts(to_encode_part['text'], unicode_to_font_path)
-        for font_part in font_parts:
-            glyphs = get_glyphs(font_part['font'], font_part['text'])
-            part = {
-                'to_encode': to_encode_part['to_encode'],
-                'glyphs': glyphs,
-                'font': font_part['font']
-            }
-            parts.append(part)
-    else:
-        part = {
-            'to_encode': to_encode_part['to_encode'],
-            'text': to_encode_part['text']
-        }
-        parts.append(part)
-    
+with open('labels.json') as f:
+    labels = json.load(f)
 
-print(json.dumps(parts, indent=2))
+shaped_labels = shape_labels(labels, ignore_codepoints, unicode_to_font_path)
+
+# print(json.dumps(shaped_labels, indent=2))
+
+glyph_to_unicode_encoding = generate_encoding(shaped_labels, ignore_codepoints)
+
+# print(glyph_to_unicode_encoding)
+
+encoded_labels = encode_labels(shaped_labels, glyph_to_unicode_encoding)
+
+# print(encoded_labels)
+
+with open('encoded_labels.json', 'w') as f:
+    json.dump(encoded_labels, f, indent=2)
+
