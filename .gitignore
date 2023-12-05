@@ -5,3 +5,4 @@ CMakeCache.txt
 *.pbf
 app/public/sdfglyph.*
 font-maker
+encoding.hpp

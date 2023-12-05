@@ -242,3 +242,45 @@ encoded_labels = encode_labels(shaped_labels, glyph_to_unicode_encoding)
 with open('encoded_labels.json', 'w') as f:
     json.dump(encoded_labels, f, indent=2)
 
+def create_encoding_hpp(glyph_to_unicode_encoding):
+    unicode_to_glyph_encoding = {}
+    for key in glyph_to_unicode_encoding:
+        unicode_to_glyph_encoding[glyph_to_unicode_encoding[key]] = key
+    
+    str_font = 'std::map<int, std::string> encoding_unicode_to_font = {\n'
+    str_index = 'std::map<int, int> encoding_unicode_to_index = {\n'
+    str_x_offset = 'std::map<int, int> encoding_unicode_to_x_offset = {\n'
+    str_y_offset =  'std::map<int, int> encoding_unicode_to_y_offset = {\n'
+    str_x_advance = 'std::map<int, int> encoding_unicode_to_x_advance = {\n'
+
+    for codepoint in unicode_to_glyph_encoding:
+        font, index, x_offset, y_offset, x_advance, y_advance = unicode_to_glyph_encoding[codepoint]
+        font = font[3:]
+        str_font += f'    {{{codepoint}, "{font}"}},\n'
+        str_index += f'    {{{codepoint}, {index}}},\n'
+        str_x_offset += f'    {{{codepoint}, {x_offset}}},\n'
+        str_y_offset += f'    {{{codepoint}, {y_offset}}},\n'
+        str_x_advance += f'    {{{codepoint}, {x_advance}}},\n'
+    str_font += "};\n"
+    str_index += "};\n"
+    str_x_offset += "};\n"
+    str_y_offset += "};\n"
+    str_x_advance += "};\n"
+    
+    encoding_hpp = '#include <map>\n#include <string>\n'
+    encoding_hpp += '\n'
+    encoding_hpp += str_font
+    encoding_hpp += '\n'
+    encoding_hpp += str_index
+    encoding_hpp += '\n'
+    encoding_hpp += str_x_offset
+    encoding_hpp += '\n'
+    encoding_hpp += str_y_offset
+    encoding_hpp += '\n'
+    encoding_hpp += str_x_advance
+
+    return encoding_hpp
+
+encoding_hpp = create_encoding_hpp(glyph_to_unicode_encoding)
+with open('../encoding.hpp', 'w') as f:
+    f.write(encoding_hpp)
