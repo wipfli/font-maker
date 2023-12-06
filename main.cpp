@@ -58,21 +58,9 @@ void do_codepoint(fontstack *f, protozero::pbf_writer &parent, std::vector<FT_Fa
             protozero::pbf_writer glyph_message{glyph_data};
 
             if (encoded_codepoint) {
-                printf("before changes\n");
-                printf("char code %d\n", char_code);
-                printf("index %d, width %d\n", char_index, glyph.width);
-                printf("index %d, height %d\n", char_index, glyph.height);
-                printf("index %d, top %d\n", char_index, glyph.top);
-                printf("index %d, left %d\n", char_index, glyph.left);
-                printf("index %d, advance %d\n", char_index, glyph.advance);
-
-                glyph.top += encoding_unicode_to_y_offset[char_code] / 48; // TODO use Round instead, should be 1/64
-                // if (mapping_x_offset[mapping_id] != 0) {
-                //     glyph.left += int(round(float(mapping_x_offset[mapping_id]) / 48.0));
-                //     glyph.left += 2;
-                // }
-                
-                // glyph.advance = int(round(float(mapping_x_advance[mapping_id]) / 40.0));
+                glyph.top += encoding_unicode_to_y_offset[char_code] / 64;
+                glyph.left += encoding_unicode_to_x_offset[char_code] / 64;
+                // glyph.advance = encoding_unicode_to_x_advance[char_code] / 64;
             }
 
             // direct type conversions, no need for checking or casting
