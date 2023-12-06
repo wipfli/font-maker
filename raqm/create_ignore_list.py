@@ -5,8 +5,12 @@ ignore_codepoints = {}
 for i in range(2 ** 16):
     ignore_codepoints[i] = True
 
-    # lowercase Latin
-    if 65+26 <= i <= 65+2*26:
+    # Main blocks for Indic scripts and Sinhala
+    if 0x0900 <= i <= 0x0DFF:
+        ignore_codepoints[i] = False
+
+    # Main blocks for Tibetan and Myanmar
+    if 0x0F00 <= i <= 0x109F:
         ignore_codepoints[i] = False
     
     # Khmer

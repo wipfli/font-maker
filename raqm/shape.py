@@ -237,7 +237,7 @@ glyph_to_unicode_encoding = generate_encoding(shaped_labels, ignore_codepoints)
 
 encoded_labels = encode_labels(shaped_labels, glyph_to_unicode_encoding)
 
-# print(encoded_labels)
+print(encoded_labels)
 
 with open('encoded_labels.json', 'w') as f:
     json.dump(encoded_labels, f, indent=2)
