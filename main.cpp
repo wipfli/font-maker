@@ -11,54 +11,40 @@
 #endif
 #include <iostream>
 
+#include "Roboto-Medium-assets.hpp"
+
 using namespace std;
 
 void do_codepoint(protozero::pbf_writer &parent, std::vector<FT_Face> &faces, FT_ULong char_code) {
     for (auto const &face : faces) {
-        FT_UInt char_index = FT_Get_Char_Index(face, char_code);
-        if (char_index > 0) {
-            sdf_glyph_foundry::glyph_info glyph;
-            glyph.glyph_index = char_index;
-            sdf_glyph_foundry::RenderSDF(glyph, 24, 3, 0.25, face);
-
+        if (char_code_to_width.count(char_code) > 0) {
             string glyph_data;
             protozero::pbf_writer glyph_message{glyph_data};
 
-            // direct type conversions, no need for checking or casting
-            glyph_message.add_uint32(3,glyph.width);
-            glyph_message.add_uint32(4,glyph.height);
-            glyph_message.add_sint32(5,glyph.left);
+            glyph_message.add_uint32(3, static_cast<uint32_t>(char_code_to_width[char_code]));
+            glyph_message.add_uint32(4, static_cast<uint32_t>(char_code_to_height[char_code]));
+            glyph_message.add_sint32(5, static_cast<int32_t>(char_code_to_left[char_code]));
+            glyph_message.add_uint32(1, static_cast<uint32_t>(char_code));
+            glyph_message.add_sint32(6, static_cast<int32_t>(char_code_to_top[char_code]));
 
-            // conversions requiring checks, for safety and correctness
-
-            // shortening conversion
-            if (char_code > numeric_limits<uint32_t>::max()) {
-                throw runtime_error("Invalid value for char_code: too large");
-            } else {
-                glyph_message.add_uint32(1,static_cast<uint32_t>(char_code));
+            int advance = char_code_to_advance[char_code];
+            FT_UInt char_index = FT_Get_Char_Index(face, char_code);
+            if (char_index > 0) {
+                sdf_glyph_foundry::glyph_info glyph;
+                glyph.glyph_index = char_index;
+                sdf_glyph_foundry::RenderSDF(glyph, 24, 3, 0.25, face);
+                advance = glyph.advance;
             }
-
-            // node-fontnik uses glyph.top - glyph.ascender, assuming that the baseline
-            // will be based on the ascender. However, Mapbox/MapLibre shaping assumes
-            // a baseline calibrated on DIN Pro w/ ascender of ~25 at 24pt
-            int32_t top = glyph.top - 25;
-            if (top < numeric_limits<int32_t>::min() || top > numeric_limits<int32_t>::max()) {
-                throw runtime_error("Invalid value for glyph.top-25");
-            } else {
-                glyph_message.add_sint32(6,top);
+            glyph_message.add_uint32(7, static_cast<uint32_t>(advance));
+            
+            string values;
+            values.resize(4 * char_code_to_width[char_code] * char_code_to_height[char_code]);
+            for (int i = 0; i < values.length(); ++i) {
+                values[i] = static_cast<char>(char_code_to_values[char_code][i]);
             }
+            glyph_message.add_bytes(2, values);
 
-            // double to uint
-            if (glyph.advance < numeric_limits<uint32_t>::min() || glyph.advance > numeric_limits<uint32_t>::max()) {
-                throw runtime_error("Invalid value for glyph.top-glyph.ascender");
-            } else {
-                glyph_message.add_uint32(7,static_cast<uint32_t>(glyph.advance));
-            }
-
-            if (glyph.width > 0) {
-                glyph_message.add_bytes(2,glyph.bitmap);
-            }
-            parent.add_message(3,glyph_data);
+            parent.add_message(3, glyph_data);
             return;
         }
     }
@@ -203,29 +189,11 @@ extern "C" {
 #ifndef EMSCRIPTEN
 int main(int argc, char *argv[])
 {
-    cxxopts::Options cmd_options("font-maker", "Create font PBFs.");
-    cmd_options.add_options()
-        ("output", "Output directory", cxxopts::value<string>())
-        ("fonts", "Input fonts TTF or OTF", cxxopts::value<vector<string>>())
-        ("name", "Override output fontstack name", cxxopts::value<string>())
-    ;
-    cmd_options.parse_positional({"output","fonts"});
-    auto result = cmd_options.parse(argc, argv);
-    if (result.count("output") == 0 || result.count("fonts") == 0) {
-        cout << "usage: font-maker OUTPUT_DIR INPUT_FONT [INPUT_FONT2 ...]" << endl;
-        exit(1);
-    }
-    auto output_dir = result["output"].as<string>();
-    auto fonts = result["fonts"].as<vector<string>>();
 
-    if (ghc::filesystem::exists(output_dir)) {
-        cout << "ERROR: output directory " << output_dir << " exists." << endl;
-        exit(1);
-    }
-    if (ghc::filesystem::exists(output_dir)) ghc::filesystem::remove_all(output_dir);
-    ghc::filesystem::create_directory(output_dir);
-
-    fontstack *f = create_fontstack(result["name"].as<string>().c_str());
+    string output_dir = "output_dir";
+    vector<string> fonts = {"fonts/Roboto-Medium.ttf"};
+    string name = "Roboto Medium"; // don't forget the #include ...
+    fontstack *f = create_fontstack(name.c_str());
 
     for (auto const &font : fonts) {
         std::ifstream file(font, std::ios::binary | std::ios::ate);
